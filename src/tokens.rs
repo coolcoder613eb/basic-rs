@@ -1,9 +1,10 @@
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum Tokens {
     Linenum,
     Print,
     Goto,
     String,
+    Number,
     Comment,
     Unknown,
 }
@@ -41,15 +42,65 @@ pub fn tokenise(linetext: &str) -> Vec<Token> {
         tokentype: kwtype,
         text: String::from(keyword),
     });
-    tokens
+    // Keyword-specific code
+    match kwtype {
+        Tokens::Print => {
+            //expect an expression
+            let exprs = expression(&mut line);
+            for expr in exprs {
+                //println!("{:#?}", expr);
+                tokens.push(expr)
+            }
+        }
+        _ => {}
+    }
+    return tokens;
 }
-fn getlinenum(line: &mut Line) -> &str {
+fn expression(line: &mut Line) -> Vec<Token> {
+    // lex an expression
+    // for now, string and number literals only
+    let left = &line.line[line.index..].trim();
+    println!("Left: '{}'", left);
+    if left.starts_with('"') {
+        line.index += 1;
+        let string = readuntil(line, '"', true);
+        println!("string: {string}");
+        vec![Token {
+            tokentype: Tokens::String,
+            text: string,
+        }]
+    } else {
+        vec![]
+    }
+}
+fn getlinenum(line: &mut Line) -> String {
     readuntil(line, ' ', false)
 }
-fn readuntil(line: &mut Line, character: char, esc: bool) -> &str {
-    let left = &line.line[line.index..];
-    let index = left.find(character).unwrap();
-    let text = &line.line[line.index..index + line.index];
-    line.index = index + 1;
+fn readuntil(line: &mut Line, character: char, esc: bool) -> String {
+    let mut text = String::new();
+    let mut pretext = String::new();
+    loop {
+        let mut drop = false;
+        let left = &line.line[line.index..];
+        let index = left.find(character).unwrap();
+        let minus_one = (index + line.index) - 1;
+        if esc && (&line.line[minus_one..minus_one + 1] == "\\") {
+            pretext.push_str(&line.line[line.index..index + line.index - 1]);
+            pretext.push_str(&line.line[index + line.index..index + line.index + 1]);
+            println!("ESCAPED {pretext}")
+        } else {
+            drop = true;
+        }
+        text = pretext.clone() + &line.line[line.index..index + line.index];
+        println!(
+            "left: {left}, index: {index}, line.index: {}, text: {text}, -1: '{}'",
+            line.index,
+            &line.line[minus_one..minus_one + 1]
+        );
+        line.index = index + line.index + 1;
+        if drop {
+            break;
+        }
+    }
     text
 }
