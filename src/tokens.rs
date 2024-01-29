@@ -52,6 +52,14 @@ pub fn tokenise(linetext: &str) -> Vec<Token> {
                 tokens.push(expr)
             }
         }
+        Tokens::Goto => {
+            //expect an expression
+            let exprs = expression(&mut line);
+            for expr in exprs {
+                println!("{:#?}", expr);
+                tokens.push(expr)
+            }
+        }
         _ => {}
     }
     return tokens;
@@ -59,8 +67,12 @@ pub fn tokenise(linetext: &str) -> Vec<Token> {
 fn expression(line: &mut Line) -> Vec<Token> {
     // lex an expression
     // for now, string and number literals only
-    let left = &line.line[line.index..].trim();
-    println!("Left: '{}'", left);
+    let mut left = line.line[line.index..].trim();
+    println!(
+        "Left: '{}', left.chars().nth(0): {}",
+        left,
+        left.chars().nth(0).unwrap()
+    );
     if left.starts_with('"') {
         line.index += 1;
         let string = readuntil(line, '"', true);
@@ -68,6 +80,24 @@ fn expression(line: &mut Line) -> Vec<Token> {
         vec![Token {
             tokentype: Tokens::String,
             text: string,
+        }]
+    } else if left.chars().nth(0).unwrap().is_digit(10) {
+        let mut digits = String::new();
+        digits.push(left.chars().nth(0).unwrap());
+        line.index += 1;
+        left = &line.line[line.index..];
+        loop {
+            if !left.is_empty() && left.chars().nth(0).unwrap().is_digit(10) {
+                digits.push(left.chars().nth(0).unwrap());
+                line.index += 1;
+                left = &line.line[line.index..];
+            } else {
+                break;
+            }
+        }
+        vec![Token {
+            tokentype: Tokens::Number,
+            text: digits,
         }]
     } else {
         vec![]
